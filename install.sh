@@ -955,7 +955,7 @@ EOF
 
 	cat <<EOF >>${nginxConfigPath}alone.conf
 server {
-	listen 127.0.0.1:31300;
+	listen 127.0.0.1:31300 proxy_protocol;
 	server_name ${domain};
 	root /usr/share/nginx/html;
 	location /s/ {
@@ -2260,7 +2260,7 @@ EOF
 		  }
 		],
 		"fallbacks":[
-			{"dest":"31300"}
+			{"dest":"31300","xver":1}
 		]
 	  },
 	  "streamSettings": {
