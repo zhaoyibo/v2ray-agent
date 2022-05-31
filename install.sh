@@ -51,16 +51,16 @@ checkSystem() {
 
 	elif grep </etc/issue -q -i "debian" && [[ -f "/etc/issue" ]] || grep </etc/issue -q -i "debian" && [[ -f "/proc/version" ]]; then
 		release="debian"
-		installType='apt -y install'
+		installType="apt -o Dpkg::Options::="--force-confold" -y install"
 		upgrade="apt update"
-		updateReleaseInfoChange='apt-get --allow-releaseinfo-change update'
+		updateReleaseInfoChange='apt update'
 		removeType='apt -y autoremove'
 
 	elif grep </etc/issue -q -i "ubuntu" && [[ -f "/etc/issue" ]] || grep </etc/issue -q -i "ubuntu" && [[ -f "/proc/version" ]]; then
 		release="ubuntu"
 		installType='apt -y install'
 		upgrade="apt update"
-		updateReleaseInfoChange='apt-get --allow-releaseinfo-change update'
+		updateReleaseInfoChange='apt update'
 		removeType='apt -y autoremove'
 		if grep </etc/issue -q -i "16."; then
 			release=
@@ -316,7 +316,7 @@ insertLua() {
 
 	if ! find /usr/share | grep -q -w libnginx-mod-http-lua; then
 		echoContent green " ---> 安装libnginx-mod-http-lua"
-		${installType} libnginx-mod-http-lua >/dev/null 2>&1
+		${installType} libnginx-mod-http-lua # >/dev/null 2>&1
 	fi
 }
 
@@ -780,13 +780,12 @@ installNginxTools() {
 
 	if [[ "${release}" == "debian" ]]; then
 		sudo apt install gnupg2 ca-certificates lsb-release -y >/dev/null 2>&1
-		echo "deb http://nginx.org/packages/mainline/debian $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
+		echo "deb http://nginx.org/packages/debian/ $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
 		echo -e "Package: *\nPin: origin nginx.org\nPin: release o=nginx\nPin-Priority: 900\n" | sudo tee /etc/apt/preferences.d/99nginx >/dev/null 2>&1
 		curl -o /tmp/nginx_signing.key https://nginx.org/keys/nginx_signing.key >/dev/null 2>&1
 		# gpg --dry-run --quiet --import --import-options import-show /tmp/nginx_signing.key
 		sudo mv /tmp/nginx_signing.key /etc/apt/trusted.gpg.d/nginx_signing.asc
 		sudo apt update >/dev/null 2>&1
-
 	elif [[ "${release}" == "ubuntu" ]]; then
 		sudo apt install gnupg2 ca-certificates lsb-release -y >/dev/null 2>&1
 		echo "deb http://nginx.org/packages/mainline/ubuntu $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
@@ -817,7 +816,7 @@ module_hotfixes=true
 EOF
 		sudo yum-config-manager --enable nginx-mainline >/dev/null 2>&1
 	fi
-	${installType} nginx=1.18.0-6.1 >/dev/null 2>&1
+	${installType} nginx=1.18.* >/dev/null 2>&1
 	systemctl daemon-reload
 	systemctl enable nginx
 }
