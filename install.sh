@@ -806,7 +806,7 @@ installTools() {
 installNginxTools() {
 
 	if [[ "${release}" == "debian" ]]; then
-		sudo apt -y install gnupg ca-certificates >/dev/null 2>&1
+		"${installType}" gnupg ca-certificates >/dev/null 2>&1
 		wget -q -O - https://openresty.org/package/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
 		echo "deb http://openresty.org/package/debian $(lsb_release -cs) openresty" | sudo tee /etc/apt/sources.list.d/openresty.list >/dev/null 2>&1
 
@@ -815,10 +815,10 @@ installNginxTools() {
 		# curl -o /tmp/nginx_signing.key https://nginx.org/keys/nginx_signing.key >/dev/null 2>&1
 		# gpg --dry-run --quiet --import --import-options import-show /tmp/nginx_signing.key
 		# sudo mv /tmp/nginx_signing.key /etc/apt/trusted.gpg.d/nginx_signing.asc
-		sudo apt update >/dev/null 2>&1
+		${upgrade} >/dev/null 2>&1
 	elif [[ "${release}" == "ubuntu" ]]; then
 
-		sudo apt -y install gnupg ca-certificates lsb-release -y >/dev/null 2>&1
+		"${installType}" install gnupg ca-certificates lsb-release -y >/dev/null 2>&1
 		wget -O - https://openresty.org/package/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
 		echo "deb http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list >/dev/null 2>&1
 
@@ -828,28 +828,35 @@ installNginxTools() {
 		#		curl -o /tmp/nginx_signing.key https://nginx.org/keys/nginx_signing.key >/dev/null 2>&1
 		# gpg --dry-run --quiet --import --import-options import-show /tmp/nginx_signing.key
 		#		sudo mv /tmp/nginx_signing.key /etc/apt/trusted.gpg.d/nginx_signing.asc
-		sudo apt update >/dev/null 2>&1
+		${upgrade} >/dev/null 2>&1
 
 	elif [[ "${release}" == "centos" ]]; then
 		${installType} yum-utils >/dev/null 2>&1
-		cat <<EOF >/etc/yum.repos.d/nginx.repo
-[nginx-stable]
-name=nginx stable repo
-baseurl=http://nginx.org/packages/centos/\$releasever/\$basearch/
-gpgcheck=1
-enabled=1
-gpgkey=https://nginx.org/keys/nginx_signing.key
-module_hotfixes=true
 
-[nginx-mainline]
-name=nginx mainline repo
-baseurl=http://nginx.org/packages/mainline/centos/\$releasever/\$basearch/
-gpgcheck=1
-enabled=0
-gpgkey=https://nginx.org/keys/nginx_signing.key
-module_hotfixes=true
-EOF
-		sudo yum-config-manager --enable nginx-mainline >/dev/null 2>&1
+		wget https://openresty.org/package/centos/openresty.repo
+		sudo mv openresty.repo /etc/yum.repos.d/
+
+		sudo yum check-update
+#		sudo yum install -y openresty
+#
+#		cat <<EOF >/etc/yum.repos.d/nginx.repo
+#[nginx-stable]
+#name=nginx stable repo
+#baseurl=http://nginx.org/packages/centos/\$releasever/\$basearch/
+#gpgcheck=1
+#enabled=1
+#gpgkey=https://nginx.org/keys/nginx_signing.key
+#module_hotfixes=true
+#
+#[nginx-mainline]
+#name=nginx mainline repo
+#baseurl=http://nginx.org/packages/mainline/centos/\$releasever/\$basearch/
+#gpgcheck=1
+#enabled=0
+#gpgkey=https://nginx.org/keys/nginx_signing.key
+#module_hotfixes=true
+#EOF
+#		sudo yum-config-manager --enable nginx-mainline >/dev/null 2>&1
 	fi
 	${installType} openresty >/dev/null 2>&1
 	systemctl daemon-reload
@@ -868,12 +875,12 @@ installWarp() {
 	if [[ "${release}" == "debian" ]]; then
 		curl -s https://pkg.cloudflareclient.com/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
 		echo "deb http://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list >/dev/null 2>&1
-		sudo apt update >/dev/null 2>&1
+		${upgrade} >/dev/null 2>&1
 
 	elif [[ "${release}" == "ubuntu" ]]; then
 		curl -s https://pkg.cloudflareclient.com/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
 		echo "deb http://pkg.cloudflareclient.com/ focal main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list >/dev/null 2>&1
-		sudo apt update >/dev/null 2>&1
+		${upgrade} >/dev/null 2>&1
 
 	elif [[ "${release}" == "centos" ]]; then
 		${installType} yum-utils >/dev/null 2>&1
@@ -5008,7 +5015,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.6.1-dev"
+	echoContent green "当前版本:v2.6.1-dev-1"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
