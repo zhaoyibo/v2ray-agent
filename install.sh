@@ -51,7 +51,7 @@ checkSystem() {
 
 	elif grep </etc/issue -q -i "debian" && [[ -f "/etc/issue" ]] || grep </etc/issue -q -i "debian" && [[ -f "/proc/version" ]]; then
 		release="debian"
-		installType="apt -o Dpkg::Options::="--force-confold" -y install"
+		installType="apt -y install"
 		upgrade="apt update"
 		updateReleaseInfoChange='apt update'
 		removeType='apt -y autoremove'
@@ -206,7 +206,7 @@ initVar() {
 	BTPanelStatus=
 
 	# nginx配置文件路径
-	nginxConfigPath=/etc/nginx/conf.d/
+	nginxConfigPath=/etc/v2ray-agent/nginx/conf.d/
 }
 
 # 检测安装方式
@@ -298,7 +298,7 @@ readInstallAlpn() {
 }
 
 # 安装nginx Lua
-insertLua() {
+installLua() {
 	if ! find /usr/bin /usr/sbin | grep -q -w lua5.2; then
 		echoContent green " ---> 安装lua5.2"
 		${installType} lua5.2 >/dev/null 2>&1
@@ -323,11 +323,15 @@ insertLua() {
 # 修改nginx白名单
 updateWhiteListIPNginx() {
 	local nginxConf
-	nginxConf=$(sed "$(grep -n "user" </etc/nginx/nginx.conf | head -1 | awk -F "[:]" '{print $1}')c user root;" /etc/nginx/nginx.conf)
+	nginxConf=$(sed "$(grep -n "user" </usr/local/openresty/nginx/conf/nginx.conf | head -1 | awk -F "[:]" '{print $1}')c user root;" /usr/local/openresty/nginx/conf/nginx.conf)
 
-	echo "${nginxConf}" >/etc/nginx/nginx.conf
+	echo "${nginxConf}" >/usr/local/openresty/nginx/conf/nginx.conf
 	cp ${nginxConfigPath}alone.conf /etc/v2ray-agent/ss/alone.conf
-	sed "/location \/s\/ {/{:a;n;s/alias \/etc\/v2ray-agent\/subscribe\/;/real_ip_header proxy_protocol;\n\t\tset_real_ip_from 0.0.0.0\/8;\n\t\tproxy_set_header X-Real-IP       \$proxy_protocol_addr;\n\t\tproxy_set_header X-Forwarded-For \$proxy_protocol_addr;\n\t\tcontent_by_lua_block {\n\t\t\tclientIP =ngx.var.proxy_protocol_addr;\n\t\t\tngx.header.content_type = \"text\/plain;charset=UTF-8\";\n\t\t\tpath = string.sub(\"\"..ngx.var.request_uri..\"\",4,-1);\n\t\t\tlocal file=\"\/etc\/v2ray-agent\/subscribe\/\"..path..\"\";\n\t\t\tlocal f = io.open(file, \"rb\");\n\t\t\tlocal content = f:read(\"*all\");\n\t\t\tf:close();\n\t\t\tos.execute(\"\/usr\/bin\/bash \/etc\/v2ray-agent\/install.sh whitelistIP ${ssPort} \"..clientIP..\" \"..path..\" >> \/etc\/v2ray-agent\/whiteListIP.log\");\n\t\t\tngx.print(content);\n\t\t}/g;/}/! ba}" ${nginxConfigPath}alone.conf >/tmp/alone.conf && mv /tmp/alone.conf ${nginxConfigPath}alone.conf
+
+	local bashPath=
+	bashPath=$(which bash)
+	bashPath=${bashPath////\\/}
+	sed "/location \/s\/ {/{:a;n;s/alias \/etc\/v2ray-agent\/subscribe\/;/real_ip_header proxy_protocol;\n\t\tset_real_ip_from 0.0.0.0\/8;\n\t\tproxy_set_header X-Real-IP       \$proxy_protocol_addr;\n\t\tproxy_set_header X-Forwarded-For \$proxy_protocol_addr;\n\t\tcontent_by_lua_block {\n\t\t\tclientIP =ngx.var.proxy_protocol_addr;\n\t\t\tngx.header.content_type = \"text\/plain;charset=UTF-8\";\n\t\t\tpath = string.sub(\"\"..ngx.var.request_uri..\"\",4,-1);\n\t\t\tlocal file=\"\/etc\/v2ray-agent\/subscribe\/\"..path..\"\";\n\t\t\tlocal f = io.open(file, \"rb\");\n\t\t\tlocal content = f:read(\"*all\");\n\t\t\tf:close();\n\t\t\tos.execute(\"${bashPath} \/etc\/v2ray-agent\/install.sh whitelistIP ${ssPort} \"..clientIP..\" \"..path..\" >> \/etc\/v2ray-agent\/whiteListIP.log\");\n\t\t\tngx.print(content);\n\t\t}/g;/}/! ba}" ${nginxConfigPath}alone.conf >/tmp/alone.conf && mv /tmp/alone.conf ${nginxConfigPath}alone.conf
 }
 # 检查防火墙状态
 checkFirewall() {
@@ -622,6 +626,9 @@ mkdirTools() {
 	mkdir -p /etc/v2ray-agent/xray/conf
 	mkdir -p /etc/v2ray-agent/xray/tmp
 	mkdir -p /etc/v2ray-agent/trojan
+	mkdir -p /etc/v2ray-agent/nginx
+	mkdir -p /etc/v2ray-agent/nginx/backup
+	mkdir -p //etc/v2ray-agent/nginx/conf.d/
 	#	mkdir -p /etc/v2ray-agent/hysteria/conf
 	mkdir -p /etc/v2ray-agent/ss/
 	mkdir -p /etc/systemd/system/
@@ -728,19 +735,39 @@ installTools() {
 		echoContent green " ---> 安装nginx"
 		installNginxTools
 	else
-		nginxVersion=$(nginx -v 2>&1)
-		nginxVersion=$(echo "${nginxVersion}" | awk -F "[n][g][i][n][x][/]" '{print $2}' | awk -F "[.]" '{print $2}')
-		if [[ ${nginxVersion} -lt 14 ]]; then
-			read -r -p "读取到当前的Nginx版本不支持gRPC，会导致安装失败，是否卸载Nginx后重新安装 ？[y/n]:" unInstallNginxStatus
-			if [[ "${unInstallNginxStatus}" == "y" ]]; then
-				${removeType} nginx >/dev/null 2>&1
-				echoContent yellow " ---> nginx卸载完成"
-				echoContent green " ---> 安装nginx"
-				installNginxTools >/dev/null 2>&1
-			else
-				exit 0
+		if [[ -L /usr/bin/nginx ]]; then
+			rm /usr/bin/nginx
+			installNginxTools >/dev/null 2>&1
+		else
+			nginxVersion=$(nginx -v 2>&1)
+
+			if ! echo "${nginxVersion}" | grep -q "openresty"; then
+				echo
+				read -r -p "检测到不兼容此版脚本的Nginx，是否卸载Nginx后重新安装 ？[y/n]:" unInstallNginxStatus
+				if [[ "${unInstallNginxStatus}" == "y" ]]; then
+					${removeType} nginx >/dev/null 2>&1
+					echoContent yellow " ---> nginx卸载完成"
+					echoContent green " ---> 安装nginx"
+					installNginxTools >/dev/null 2>&1
+				else
+					exit 0
+				fi
 			fi
+
 		fi
+
+		#		nginxVersion=$(echo "${nginxVersion}" | awk -F "[n][g][i][n][x][/]" '{print $2}' | awk -F "[.]" '{print $2}')
+		#		if [[ ${nginxVersion} -lt 14 ]]; then
+		#			read -r -p "读取到当前的Nginx版本不支持gRPC，会导致安装失败，是否卸载Nginx后重新安装 ？[y/n]:" unInstallNginxStatus
+		#			if [[ "${unInstallNginxStatus}" == "y" ]]; then
+		#				${removeType} nginx >/dev/null 2>&1
+		#				echoContent yellow " ---> nginx卸载完成"
+		#				echoContent green " ---> 安装nginx"
+		#				installNginxTools >/dev/null 2>&1
+		#			else
+		#				exit 0
+		#			fi
+		#		fi
 	fi
 	if ! find /usr/bin /usr/sbin | grep -q -w semanage; then
 		echoContent green " ---> 安装semanage"
@@ -779,20 +806,28 @@ installTools() {
 installNginxTools() {
 
 	if [[ "${release}" == "debian" ]]; then
-		sudo apt install gnupg2 ca-certificates lsb-release -y >/dev/null 2>&1
-		echo "deb http://nginx.org/packages/debian/ $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
-		echo -e "Package: *\nPin: origin nginx.org\nPin: release o=nginx\nPin-Priority: 900\n" | sudo tee /etc/apt/preferences.d/99nginx >/dev/null 2>&1
-		curl -o /tmp/nginx_signing.key https://nginx.org/keys/nginx_signing.key >/dev/null 2>&1
+		sudo apt -y install gnupg ca-certificates >/dev/null 2>&1
+		wget -q -O - https://openresty.org/package/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
+		echo "deb http://openresty.org/package/debian $(lsb_release -cs) openresty" | sudo tee /etc/apt/sources.list.d/openresty.list >/dev/null 2>&1
+
+		# echo "deb http://nginx.org/packages/debian/ $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
+		# echo -e "Package: *\nPin: origin nginx.org\nPin: release o=nginx\nPin-Priority: 900\n" | sudo tee /etc/apt/preferences.d/99nginx >/dev/null 2>&1
+		# curl -o /tmp/nginx_signing.key https://nginx.org/keys/nginx_signing.key >/dev/null 2>&1
 		# gpg --dry-run --quiet --import --import-options import-show /tmp/nginx_signing.key
-		sudo mv /tmp/nginx_signing.key /etc/apt/trusted.gpg.d/nginx_signing.asc
+		# sudo mv /tmp/nginx_signing.key /etc/apt/trusted.gpg.d/nginx_signing.asc
 		sudo apt update >/dev/null 2>&1
 	elif [[ "${release}" == "ubuntu" ]]; then
-		sudo apt install gnupg2 ca-certificates lsb-release -y >/dev/null 2>&1
-		echo "deb http://nginx.org/packages/mainline/ubuntu $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
-		echo -e "Package: *\nPin: origin nginx.org\nPin: release o=nginx\nPin-Priority: 900\n" | sudo tee /etc/apt/preferences.d/99nginx >/dev/null 2>&1
-		curl -o /tmp/nginx_signing.key https://nginx.org/keys/nginx_signing.key >/dev/null 2>&1
+
+		sudo apt -y install gnupg ca-certificates lsb-release -y >/dev/null 2>&1
+		wget -O - https://openresty.org/package/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
+		echo "deb http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list >/dev/null 2>&1
+
+		#		sudo apt install gnupg2 ca-certificates lsb-release -y >/dev/null 2>&1
+		#		echo "deb http://nginx.org/packages/mainline/ubuntu $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
+		#		echo -e "Package: *\nPin: origin nginx.org\nPin: release o=nginx\nPin-Priority: 900\n" | sudo tee /etc/apt/preferences.d/99nginx >/dev/null 2>&1
+		#		curl -o /tmp/nginx_signing.key https://nginx.org/keys/nginx_signing.key >/dev/null 2>&1
 		# gpg --dry-run --quiet --import --import-options import-show /tmp/nginx_signing.key
-		sudo mv /tmp/nginx_signing.key /etc/apt/trusted.gpg.d/nginx_signing.asc
+		#		sudo mv /tmp/nginx_signing.key /etc/apt/trusted.gpg.d/nginx_signing.asc
 		sudo apt update >/dev/null 2>&1
 
 	elif [[ "${release}" == "centos" ]]; then
@@ -816,9 +851,15 @@ module_hotfixes=true
 EOF
 		sudo yum-config-manager --enable nginx-mainline >/dev/null 2>&1
 	fi
-	${installType} nginx=1.18.* >/dev/null 2>&1
+	${installType} openresty >/dev/null 2>&1
 	systemctl daemon-reload
-	systemctl enable nginx
+	systemctl enable openresty
+	if ! grep -q "/etc/v2ray-agent/nginx/conf.d/" </usr/local/openresty/nginx/conf/nginx.conf; then
+		ln -s "$(which openresty | head -1)" /usr/bin/nginx
+		local nginxLastLine=$(($(wc -l </usr/local/openresty/nginx/conf/nginx.conf) - 1))
+		sed "${nginxLastLine}i \\\tinclude /etc/v2ray-agent/nginx/conf.d/*.conf;" /usr/local/openresty/nginx/conf/nginx.conf >/tmp/nginx.conf && mv /tmp/nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
+	fi
+
 }
 
 # 安装warp
@@ -1254,7 +1295,7 @@ updateSELinuxHTTPPortT() {
 handleNginx() {
 
 	if [[ -z $(pgrep -f "nginx") ]] && [[ "$1" == "start" ]]; then
-		systemctl start nginx 2>/etc/v2ray-agent/nginx_error.log
+		systemctl start openresty 2>/etc/v2ray-agent/nginx_error.log
 
 		sleep 0.5
 
@@ -1265,14 +1306,12 @@ handleNginx() {
 			if grep -q "journalctl -xe" </etc/v2ray-agent/nginx_error.log; then
 				updateSELinuxHTTPPortT
 			fi
-
-			# exit 0
 		else
 			echoContent green " ---> Nginx启动成功"
 		fi
 
 	elif [[ -n $(pgrep -f "nginx") ]] && [[ "$1" == "stop" ]]; then
-		systemctl stop nginx
+		systemctl stop openresty
 		sleep 0.5
 		if [[ -n $(pgrep -f "nginx") ]]; then
 			pgrep -f "nginx" | xargs kill -9
@@ -2801,7 +2840,8 @@ EOF
 	elif [[ "${type}" == "ss" ]]; then
 		# URLEncode
 
-		local base64SS=$(echo -n "${method}:${id}" | base64 -w 0)
+		local base64SS=
+		base64SS=$(echo -n "${method}:${id}" | base64 -w 0)
 
 		echoContent yellow " ---> 格式化明文"
 		echoContent green "    协议类型:shadowsocks，地址:${currentHost}，端口:${ssPort}，用户ID:${id}，method:${method}，账户名:${email}\n"
@@ -2929,15 +2969,15 @@ showAccounts() {
 removeNginx302() {
 	# 查找到302那行并删除
 	#	local line302Result=
-	#	line302Result=$(grep -n "return 302" </etc/nginx/conf.d/alone.conf | tail -n 1)
+	#	line302Result=$(grep -n "return 302" </etc/v2ray-agent/nginx/conf.d/alone.conf | tail -n 1)
 	local count=0
-	grep -n "return 302" <"/etc/nginx/conf.d/alone.conf" | while read -r line; do
+	grep -n "return 302" <"/etc/v2ray-agent/nginx/conf.d/alone.conf" | while read -r line; do
 
 		if ! echo "${line}" | grep -q "request_uri"; then
 			local removeIndex=
 			removeIndex=$(echo "${line}" | awk -F "[:]" '{print $1}')
 			removeIndex=$((removeIndex + count))
-			sed -i "${removeIndex}d" /etc/nginx/conf.d/alone.conf
+			sed -i "${removeIndex}d" /etc/v2ray-agent/nginx/conf.d/alone.conf
 			count=$((count - 1))
 		fi
 	done
@@ -2962,14 +3002,14 @@ checkNginx302() {
 # 备份恢复nginx文件
 backupNginxConfig() {
 	if [[ "$1" == "backup" ]]; then
-		cp /etc/nginx/conf.d/alone.conf /etc/v2ray-agent/alone_backup.conf
+		cp /etc/v2ray-agent/nginx/conf.d/alone.conf /etc/v2ray-agent/nginx/backup/alone_backup.conf
 		echoContent green " ---> nginx配置文件备份成功"
 	fi
 
-	if [[ "$1" == "restoreBackup" ]] && [[ -f "/etc/v2ray-agent/alone_backup.conf" ]]; then
-		cp /etc/v2ray-agent/alone_backup.conf /etc/nginx/conf.d/alone.conf
+	if [[ "$1" == "restoreBackup" ]] && [[ -f "/etc/v2ray-agent/nginx/backup/alone_backup.conf" ]]; then
+		cp /etc/v2ray-agent/nginx/backup/alone_backup.conf /etc/v2ray-agent/nginx/conf.d/alone.conf
 		echoContent green " ---> nginx配置文件恢复备份成功"
-		rm /etc/v2ray-agent/alone_backup.conf
+		rm /etc/v2ray-agent/nginx/backup/alone_backup.conf
 	fi
 
 }
@@ -2978,12 +3018,12 @@ addNginx302() {
 	#	local line302Result=
 	#	line302Result=$(| tail -n 1)
 	local count=1
-	grep -n "Strict-Transport-Security" <"/etc/nginx/conf.d/alone.conf" | while read -r line; do
+	grep -n "Strict-Transport-Security" <"/etc/v2ray-agent/nginx/conf.d/alone.conf" | while read -r line; do
 		if [[ -n "${line}" ]]; then
 			local insertIndex=
 			insertIndex="$(echo "${line}" | awk -F "[:]" '{print $1}')"
 			insertIndex=$((insertIndex + count))
-			sed "${insertIndex}i return 302 '$1';" /etc/nginx/conf.d/alone.conf >/etc/nginx/conf.d/tmpfile && mv /etc/nginx/conf.d/tmpfile /etc/nginx/conf.d/alone.conf
+			sed "${insertIndex}i return 302 '$1';" /etc/v2ray-agent/nginx/conf.d/alone.conf >/etc/v2ray-agent/nginx/conf.d/tmpfile && mv /etc/v2ray-agent/nginx/conf.d/tmpfile /etc/v2ray-agent/nginx/conf.d/alone.conf
 			count=$((count + 1))
 		else
 			echoContent red " ---> 302添加失败"
@@ -3182,6 +3222,15 @@ unInstall() {
 	if [[ -d "/usr/share/nginx/html" && -f "/usr/share/nginx/html/check" ]]; then
 		rm -rf /usr/share/nginx/html
 		echoContent green " ---> 删除伪装网站完成"
+	fi
+
+	if find /usr/bin /usr/sbin | grep -q -w nginx; then
+		if [[ -L /usr/bin/nginx ]]; then
+
+			rm /usr/bin/nginx
+			${removeType} openresty >/dev/null 2>&1
+			echoContent green " ---> 删除Nginx完成"
+		fi
 	fi
 
 	rm -rf /usr/bin/vasma
@@ -3403,7 +3452,8 @@ addUser() {
 
 		if echo ${currentInstallProtocolType} | grep -q 6; then
 
-			local ssUsers=$(echo "${users}" | jq '.|{"password":.id,"method":"chacha20-ietf-poly1305","email":.email}')
+			local ssUsers=
+			ssUsers=$(echo "${users}" | jq '.|{"password":.id,"method":"chacha20-ietf-poly1305","email":.email}')
 
 			local ssResult
 			ssResult=$(jq -r ".inbounds[0].settings.clients += [${ssUsers}]" ${configPath}07_shadowsocks_inbounds.json)
@@ -3899,7 +3949,7 @@ insertSSWhiteListIP() {
 	fi
 
 	# 安装环境
-	insertLua
+	# installLua
 	# 初始化ss配置
 	initSSConfig
 	reloadCore
@@ -3913,7 +3963,7 @@ insertSSWhiteListIP() {
 # 卸载ss白名单
 unInsertSSWhiteListIP() {
 	rm ${configPath}07_shadowsocks_inbounds.json
-	mv /etc/v2ray-agent/ss/alone.conf /etc/nginx/conf.d/alone.conf >/dev/null 2>&1
+	mv /etc/v2ray-agent/ss/alone.conf /etc/v2ray-agent/nginx/conf.d/alone.conf >/dev/null 2>&1
 	reloadCore
 	handleNginx stop
 	handleNginx start
@@ -4958,7 +5008,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.6.1"
+	echoContent green "当前版本:v2.6.1-dev"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
