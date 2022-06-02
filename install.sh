@@ -806,7 +806,7 @@ installTools() {
 installNginxTools() {
 
 	if [[ "${release}" == "debian" ]]; then
-		"${installType}" gnupg ca-certificates >/dev/null 2>&1
+		${installType} gnupg ca-certificates >/dev/null 2>&1
 		wget -q -O - https://openresty.org/package/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
 		echo "deb http://openresty.org/package/debian $(lsb_release -cs) openresty" | sudo tee /etc/apt/sources.list.d/openresty.list >/dev/null 2>&1
 
@@ -818,7 +818,7 @@ installNginxTools() {
 		${upgrade} >/dev/null 2>&1
 	elif [[ "${release}" == "ubuntu" ]]; then
 
-		"${installType}" install gnupg ca-certificates lsb-release -y >/dev/null 2>&1
+		${installType} install gnupg ca-certificates lsb-release -y >/dev/null 2>&1
 		wget -O - https://openresty.org/package/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
 		echo "deb http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list >/dev/null 2>&1
 
@@ -5015,7 +5015,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.6.1-dev-1"
+	echoContent green "当前版本:v2.6.1-dev-2"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
