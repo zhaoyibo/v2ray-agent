@@ -88,6 +88,8 @@ checkCPUVendor() {
 			'armv8' | 'aarch64')
 				xrayCoreCPUVendor="Xray-linux-arm64-v8a"
 				v2rayCoreCPUVendor="v2ray-linux-arm64-v8a"
+				# 需要完善其他架构
+				cpuVendor="aarch64"
 				# hysteriaCoreCPUVendor="hysteria-linux-arm64"
 				;;
 			*)
@@ -114,6 +116,9 @@ initVar() {
 	xrayCoreCPUVendor=""
 	v2rayCoreCPUVendor=""
 	# hysteriaCoreCPUVendor=""
+
+	# CPU架构
+	cpuVendor=
 
 	# 域名
 	domain=
@@ -297,7 +302,7 @@ readInstallAlpn() {
 	fi
 }
 
-# 安装nginx Lua
+# 安装 Lua
 installLua() {
 	if ! find /usr/bin /usr/sbin | grep -q -w lua5.2; then
 		echoContent green " ---> 安装lua5.2"
@@ -808,7 +813,14 @@ installNginxTools() {
 	if [[ "${release}" == "debian" ]]; then
 		${installType} gnupg ca-certificates >/dev/null 2>&1
 		wget -q -O - https://openresty.org/package/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
-		echo "deb http://openresty.org/package/debian $(lsb_release -cs) openresty" | sudo tee /etc/apt/sources.list.d/openresty.list >/dev/null 2>&1
+		local repository=
+		repository="deb http://openresty.org/package/debian $(lsb_release -cs) openresty"
+
+		if [[ -n "${cpuVendor}" ]]; then
+			repository="deb http://openresty.org/package/${cpuVendor}/debian $(lsb_release -cs) openresty"
+		fi
+
+		echo "${repository}" | sudo tee /etc/apt/sources.list.d/openresty.list >/dev/null 2>&1
 
 		# echo "deb http://nginx.org/packages/debian/ $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
 		# echo -e "Package: *\nPin: origin nginx.org\nPin: release o=nginx\nPin-Priority: 900\n" | sudo tee /etc/apt/preferences.d/99nginx >/dev/null 2>&1
@@ -820,7 +832,15 @@ installNginxTools() {
 
 		${installType} install gnupg ca-certificates lsb-release -y >/dev/null 2>&1
 		wget -O - https://openresty.org/package/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
-		echo "deb http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list >/dev/null 2>&1
+
+		local repository=
+
+		repository="deb http://openresty.org/package/ubuntu $(lsb_release -cs) openresty"
+		if [[ -n "${cpuVendor}" ]]; then
+			repository="deb http://openresty.org/package/${cpuVendor}/ubuntu $(lsb_release -cs) openresty"
+		fi
+
+		echo "${repository}" | sudo tee /etc/apt/sources.list.d/openresty.list >/dev/null 2>&1
 
 		#		sudo apt install gnupg2 ca-certificates lsb-release -y >/dev/null 2>&1
 		#		echo "deb http://nginx.org/packages/mainline/ubuntu $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
@@ -837,26 +857,26 @@ installNginxTools() {
 		sudo mv openresty.repo /etc/yum.repos.d/
 
 		sudo yum check-update
-#		sudo yum install -y openresty
-#
-#		cat <<EOF >/etc/yum.repos.d/nginx.repo
-#[nginx-stable]
-#name=nginx stable repo
-#baseurl=http://nginx.org/packages/centos/\$releasever/\$basearch/
-#gpgcheck=1
-#enabled=1
-#gpgkey=https://nginx.org/keys/nginx_signing.key
-#module_hotfixes=true
-#
-#[nginx-mainline]
-#name=nginx mainline repo
-#baseurl=http://nginx.org/packages/mainline/centos/\$releasever/\$basearch/
-#gpgcheck=1
-#enabled=0
-#gpgkey=https://nginx.org/keys/nginx_signing.key
-#module_hotfixes=true
-#EOF
-#		sudo yum-config-manager --enable nginx-mainline >/dev/null 2>&1
+		#		sudo yum install -y openresty
+		#
+		#		cat <<EOF >/etc/yum.repos.d/nginx.repo
+		#[nginx-stable]
+		#name=nginx stable repo
+		#baseurl=http://nginx.org/packages/centos/\$releasever/\$basearch/
+		#gpgcheck=1
+		#enabled=1
+		#gpgkey=https://nginx.org/keys/nginx_signing.key
+		#module_hotfixes=true
+		#
+		#[nginx-mainline]
+		#name=nginx mainline repo
+		#baseurl=http://nginx.org/packages/mainline/centos/\$releasever/\$basearch/
+		#gpgcheck=1
+		#enabled=0
+		#gpgkey=https://nginx.org/keys/nginx_signing.key
+		#module_hotfixes=true
+		#EOF
+		#		sudo yum-config-manager --enable nginx-mainline >/dev/null 2>&1
 	fi
 	${installType} openresty >/dev/null 2>&1
 	systemctl daemon-reload
@@ -5015,7 +5035,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.6.1-dev-2"
+	echoContent green "当前版本:v2.6.1-dev-3"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
