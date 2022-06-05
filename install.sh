@@ -3973,6 +3973,7 @@ insertSSWhiteListIP() {
 
 	if [[ "${whiteListIPFirewallStatus}" == "false" ]]; then
 		echoContent red " ---> 防火墙未安装，请手动安装"
+		exit 0;
 	fi
 
 	# 安装环境
