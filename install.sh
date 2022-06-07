@@ -336,7 +336,7 @@ updateWhiteListIPNginx() {
 	local bashPath=
 	bashPath=$(which bash)
 	bashPath=${bashPath////\\/}
-	sed "/location \/s\/ {/{:a;n;s/alias \/etc\/v2ray-agent\/subscribe\/;/real_ip_header proxy_protocol;\n\t\tset_real_ip_from 0.0.0.0\/8;\n\t\tproxy_set_header X-Real-IP       \$proxy_protocol_addr;\n\t\tproxy_set_header X-Forwarded-For \$proxy_protocol_addr;\n\t\tcontent_by_lua_block {\n\t\t\tclientIP =ngx.var.proxy_protocol_addr;\n\t\t\tngx.header.content_type = \"text\/plain;charset=UTF-8\";\n\t\t\tpath = string.sub(\"\"..ngx.var.request_uri..\"\",4,-1);\n\t\t\tlocal file=\"\/etc\/v2ray-agent\/subscribe\/\"..path..\"\";\n\t\t\tlocal f = io.open(file, \"rb\");\n\t\t\tlocal content = f:read(\"*all\");\n\t\t\tf:close();\n\t\t\tos.execute(\"${bashPath} \/etc\/v2ray-agent\/install.sh whitelistIP ${ssPort} \"..clientIP..\" \"..path..\" >> \/etc\/v2ray-agent\/whiteListIP.log\");\n\t\t\tngx.print(content);\n\t\t}/g;/}/! ba}" ${nginxConfigPath}alone.conf >/tmp/alone.conf && mv /tmp/alone.conf ${nginxConfigPath}alone.conf
+	sed "/location \/s\/ {/{:a;n;s/alias \/etc\/v2ray-agent\/subscribe\/;/real_ip_header proxy_protocol;\n\t\tset_real_ip_from 127.0.0.1;\n\t\tproxy_set_header X-Real-IP       \$proxy_protocol_addr;\n\t\tproxy_set_header X-Forwarded-For \$proxy_protocol_addr;\n\t\tcontent_by_lua_block {\n\t\t\tclientIP =ngx.var.proxy_protocol_addr;\n\t\t\tngx.header.content_type = \"text\/plain;charset=UTF-8\";\n\t\t\tpath = string.sub(\"\"..ngx.var.request_uri..\"\",4,-1);\n\t\t\tlocal file=\"\/etc\/v2ray-agent\/subscribe\/\"..path..\"\";\n\t\t\tlocal f = io.open(file, \"rb\");\n\t\t\tlocal content = f:read(\"*all\");\n\t\t\tf:close();\n\t\t\tos.execute(\"${bashPath} \/etc\/v2ray-agent\/install.sh whitelistIP ${ssPort} \"..clientIP..\" \"..path..\" >> \/etc\/v2ray-agent\/whiteListIP.log\");\n\t\t\tngx.print(content);\n\t\t}/g;/}/! ba}" ${nginxConfigPath}alone.conf >/tmp/alone.conf && mv /tmp/alone.conf ${nginxConfigPath}alone.conf
 }
 # 检查防火墙状态
 checkFirewall() {
@@ -835,9 +835,9 @@ installNginxTools() {
 
 		local repository=
 
-		repository="deb http://openresty.org/package/ubuntu $(lsb_release -cs) openresty"
+		repository="deb http://openresty.org/package/ubuntu $(lsb_release -cs) main"
 		if [[ -n "${cpuVendor}" ]]; then
-			repository="deb http://openresty.org/package/${cpuVendor}/ubuntu $(lsb_release -cs) openresty"
+			repository="deb http://openresty.org/package/${cpuVendor}/ubuntu $(lsb_release -cs) main"
 		fi
 
 		echo "${repository}" | sudo tee /etc/apt/sources.list.d/openresty.list >/dev/null 2>&1
@@ -3973,7 +3973,7 @@ insertSSWhiteListIP() {
 
 	if [[ "${whiteListIPFirewallStatus}" == "false" ]]; then
 		echoContent red " ---> 防火墙未安装，请手动安装"
-		exit 0;
+		exit 0
 	fi
 
 	# 安装环境
