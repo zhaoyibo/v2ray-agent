@@ -89,7 +89,7 @@ checkCPUVendor() {
 				xrayCoreCPUVendor="Xray-linux-arm64-v8a"
 				v2rayCoreCPUVendor="v2ray-linux-arm64-v8a"
 				# 需要完善其他架构
-				cpuVendor="aarch64"
+				cpuVendor="arm64"
 				# hysteriaCoreCPUVendor="hysteria-linux-arm64"
 				;;
 			*)
@@ -5036,7 +5036,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.6.1-dev-3"
+	echoContent green "当前版本:v2.6.1-dev-4"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
