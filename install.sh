@@ -2868,17 +2868,19 @@ EOF
 		# URLEncode
 
 		local base64SS=
-		base64SS=$(echo -n "${method}:${id}" | base64 -w 0)
+		base64SS=$(echo -n "${method}:${id}@${currentHost}:${ssPort}" | base64 -w 0)
 
+		local base64v2rayPlugin=
+		base64v2rayPlugin=$(echo -n '{"mode":"websocket","host":"download.microsoft.com","path":"'"/${currentPath}stsc"'"}' | base64 -w 0)
 		echoContent yellow " ---> 格式化明文"
-		echoContent green "    协议类型:shadowsocks，地址:${currentHost}，端口:${ssPort}，用户ID:${id}，method:${method}，账户名:${email}\n"
+		echoContent green "    协议类型:shadowsocks，地址:${currentHost}，端口:${ssPort}，用户ID:${id}，method:${method}，插件:v2ray-plugin，v2ray-plugin参数：mode:websocket,host:download.microsoft.com,path:/${currentPath}stsc，账户名:${email}\n"
+		echoContent green "    ss://${base64SS}?v2ray-plugin=${base64v2rayPlugin}#${email}\n"
 
-		echoContent green "    ss://${base64SS}@${currentHost}:${ssPort}#${email}\n"
 		cat <<EOF >>"/etc/v2ray-agent/subscribe_tmp/${subAccount}"
-ss://${base64SS}@${currentHost}:${ssPort}#${email}
+ss://${base64SS}?v2ray-plugin=${base64v2rayPlugin}#${email}
 EOF
 		echoContent yellow " ---> 二维码 shadowsocks"
-		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=ss%3a%2f%2f${base64SS}%40${currentHost}%3a${ssPort}%23${email}\n"
+		echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=ss%3a%2f%2f${base64SS}%3Fv2ray-plugin=${base64v2rayPlugin}%23${email}\n"
 	fi
 
 }
@@ -3947,7 +3949,8 @@ ssWhiteListIPFunction() {
 	echoContent red "不保证IP不会被阻断，请谨慎使用"
 	echoContent yellow "访问订阅会自动添加白名单"
 	echoContent yellow "密码采用之前的安装的内容"
-	echoContent yellow "会安装lua环境"
+	echoContent yellow "不支持通过11添加的端口"
+#	echoContent yellow "会安装lua环境"
 	echoContent yellow "卸载时防火墙环境不会更改，请手动更改"
 	echoContent yellow "配置需依赖防火墙，请保证22端口可用\n"
 
@@ -4006,12 +4009,29 @@ initSSConfig() {
 {
     "inbounds": [
         {
+        	"listen": "0.0.0.0",
             "port": ${ssPort},
-            "tag": "shadowsocks",
+            "tag": "shadowsocksWS",
             "protocol": "shadowsocks",
             "settings": {
                 "clients": [],
                 "network": "tcp,udp"
+            },
+            "streamSettings":{
+            	"network":"ws",
+            	"security": "none",
+            	"wsSettings": {
+                      "path": "/${currentPath}stsc",
+                      "headers": {
+                        "Host": "download.microsoft.com"
+                      }
+                }
+            },
+            "sniffing": {
+                "enabled": true,
+                "destOverride": [
+                  "http"
+                ]
             }
         }
     ]
@@ -5036,7 +5056,7 @@ menu() {
 	cd "$HOME" || exit
 	echoContent red "\n=============================================================="
 	echoContent green "作者:mack-a"
-	echoContent green "当前版本:v2.6.1-dev-4"
+	echoContent green "当前版本:v2.6.1-dev-5"
 	echoContent green "Github:https://github.com/mack-a/v2ray-agent"
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
