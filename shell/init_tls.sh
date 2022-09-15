@@ -181,7 +181,7 @@ init(){
     echoColor green "   5.执行期间请不要重启机器"
     echoColor green "   6.备份文件和证书文件都在/tmp下面，请注意留存"
     echoColor green "   7.如果多次执行则将上次生成备份和生成的证书强制覆盖"
-    echoColor green "   8.证书默认zerossl"
+    echoColor green "   8.证书默认zerossl rsa 2048"
     echoColor green "   9.下个版本会加入通配符证书生成[todo]"
     echoColor green "   10.可以生成多个不同域名的证书[包含子域名]，具体速率请查看[https://zerossl.org/zh-cn/docs/rate-limits/]"
     echoColor green "   11.兼容Centos、Ubuntu、Debian"

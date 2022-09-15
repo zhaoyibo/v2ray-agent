@@ -1034,6 +1034,7 @@ installTLS() {
 
 	elif [[ -d "$HOME/.acme.sh" ]] && [[ ! -f "$HOME/.acme.sh/${tlsDomain}/${tlsDomain}.cer" || ! -f "$HOME/.acme.sh/${tlsDomain}/${tlsDomain}.key" ]]; then
 		echoContent green " ---> 安装TLS证书"
+		sudo "$HOME/.acme.sh/acme.sh" --register-account -m my@example.com --server zerossl
 		if echo "${localIP}" | grep -q ":"; then
 			sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone --server zerossl --listen-v6 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
 		else
@@ -4736,11 +4737,6 @@ menu() {
 	echoContent green "描述:八合一共存脚本\c"
 	showInstallStatus
 	echoContent red "\n=============================================================="
-	echoContent red "                        推广区                      "
-	echoContent green "AFF捐赠：https://github.com/zhaoyibo/v2ray-agent/blob/master/documents/donation_aff.md\n"
-	echoContent green "虚拟币捐赠：0xB08b731653515b083deE362fefFc45d5eb96c35d\n"
-	echoContent green "推广可联系TG：https://t.me/mackaff"
-	echoContent red "=============================================================="
 	if [[ -n "${coreInstallType}" ]]; then
 		echoContent yellow "1.重新安装"
 	else
